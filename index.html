@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Mini Digital Bank</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+color:white;
+text-align:center;
+padding:20px;
+}
+
+.container{
+max-width:520px;
+margin:auto;
+background:rgba(0,0,0,0.4);
+padding:25px;
+border-radius:10px;
+}
+
+input,button{
+padding:10px;
+margin:8px;
+border-radius:6px;
+border:none;
+font-size:16px;
+}
+
+button{
+background:#00c6ff;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#0072ff;
+}
+
+.card{
+background:rgba(255,255,255,0.1);
+padding:15px;
+margin-top:15px;
+border-radius:10px;
+}
+
+.balance{
+font-size:22px;
+color:#00ffae;
+font-weight:bold;
+}
+
+.hidden{
+display:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Mini Digital Bank</h2>
+
+<!-- LOGIN -->
+<div id="loginBox">
+
+<h3>Login</h3>
+
+<input id="loginUsername" placeholder="Enter Username">
+
+<button onclick="login()">Login</button>
+
+<p>or create new account</p>
+
+</div>
+
+
+<!-- REGISTER -->
+<div id="registerBox">
+
+<h3>Create Account</h3>
+
+<input id="name" placeholder="Enter Name"><br>
+
+<input id="username" maxlength="6" placeholder="Username (6 letters/numbers)">
+
+<div id="check"></div>
+
+<button onclick="createAccount()">Open Account</button>
+
+</div>
+
+
+
+<!-- BANK PANEL -->
+<div id="bankPanel" class="hidden">
+
+<h3>Account Details</h3>
+
+<div class="card">
+
+<p>Name: <span id="showName"></span></p>
+<p>Username: <span id="showUsername"></span></p>
+<p>Account No: <span id="accountNo"></span></p>
+<p>IFSC: MB0089</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>Deposit Money</h3>
+
+<img id="qr" width="150">
+
+<br>
+
+<input type="number" id="depositAmount" placeholder="Enter amount">
+
+<button onclick="deposit()">Deposit</button>
+
+</div>
+
+
+<div class="card">
+
+<h3>Saving Window</h3>
+
+<p>Interest Rate: 10% every hour</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h3>Loan Window</h3>
+
+<input id="loanAmount" type="number" placeholder="Loan Amount">
+
+<br>
+
+<input id="loanTime" type="number" placeholder="Repay Time (hours max 168)">
+
+<br>
+
+<button onclick="takeLoan()">Take Loan</button>
+
+<p>Loan interest: 20% per hour</p>
+
+</div>
+
+
+<div class="card">
+
+<p class="balance">Balance: ₹<span id="balance">0</span></p>
+
+</div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let currentUser=null;
+
+let balance=0;
+
+let loan=0;
+
+let loanEnd=0;
+
+let loanRate=0.20/3600;
+
+let savingRate=0.10/3600;
+
+
+function generateAccount(){
+
+return "0089"+Math.floor(100000+Math.random()*900000);
+
+}
+
+
+document.getElementById("username").addEventListener("input",function(){
+
+let u=this.value;
+
+let valid=/^[a-zA-Z0-9]{6}$/;
+
+if(!valid.test(u)){
+
+document.getElementById("check").innerText="Username must be 6 letters/numbers";
+
+return;
+
+}
+
+if(localStorage.getItem("user_"+u)){
+
+document.getElementById("check").innerText="Username not available";
+
+}else{
+
+document.getElementById("check").innerText="Username available";
+
+}
+
+});
+
+
+
+function createAccount(){
+
+let name=document.getElementById("name").value;
+
+let username=document.getElementById("username").value;
+
+if(name==""||username.length!=6){
+
+alert("Enter valid details");
+
+return;
+
+}
+
+let acc=generateAccount();
+
+let data={
+
+name:name,
+username:username,
+account:acc,
+balance:0,
+loan:0,
+loanEnd:0
+
+};
+
+localStorage.setItem("user_"+username,JSON.stringify(data));
+
+loadUser(data);
+
+}
+
+
+
+function login(){
+
+let username=document.getElementById("loginUsername").value;
+
+let data=localStorage.getItem("user_"+username);
+
+if(!data){
+
+alert("Account not found");
+
+return;
+
+}
+
+loadUser(JSON.parse(data));
+
+}
+
+
+
+function loadUser(data){
+
+currentUser=data.username;
+
+balance=data.balance;
+
+loan=data.loan;
+
+loanEnd=data.loanEnd;
+
+document.getElementById("showName").innerText=data.name;
+
+document.getElementById("showUsername").innerText=data.username;
+
+document.getElementById("accountNo").innerText=data.account;
+
+document.getElementById("qr").src=
+"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=DepositTo:"+data.account;
+
+document.getElementById("loginBox").classList.add("hidden");
+
+document.getElementById("registerBox").classList.add("hidden");
+
+document.getElementById("bankPanel").classList.remove("hidden");
+
+updateBalance();
+
+}
+
+
+
+function saveUser(){
+
+let data={
+
+name:document.getElementById("showName").innerText,
+username:currentUser,
+account:document.getElementById("accountNo").innerText,
+balance:balance,
+loan:loan,
+loanEnd:loanEnd
+
+};
+
+localStorage.setItem("user_"+currentUser,JSON.stringify(data));
+
+}
+
+
+
+function deposit(){
+
+let amt=parseFloat(document.getElementById("depositAmount").value);
+
+if(isNaN(amt)||amt<=0)return;
+
+balance+=amt;
+
+updateBalance();
+
+saveUser();
+
+}
+
+
+
+function takeLoan(){
+
+let amt=parseFloat(document.getElementById("loanAmount").value);
+
+let hours=parseInt(document.getElementById("loanTime").value);
+
+if(isNaN(amt)||isNaN(hours)||hours>168){
+
+alert("Max loan time is 168 hours (1 week)");
+
+return;
+
+}
+
+loan+=amt;
+
+balance+=amt;
+
+loanEnd=Date.now()+hours*3600000;
+
+updateBalance();
+
+saveUser();
+
+}
+
+
+
+function updateBalance(){
+
+document.getElementById("balance").innerText=balance.toFixed(2);
+
+}
+
+
+
+setInterval(function(){
+
+if(balance>0){
+
+balance+=balance*savingRate;
+
+}
+
+if(loan>0){
+
+let interest=loan*loanRate;
+
+balance-=interest;
+
+}
+
+if(Date.now()>loanEnd){
+
+loan=0;
+
+}
+
+updateBalance();
+
+saveUser();
+
+},1000);
+
+
+
+</script>
+
+</body>
+  </html>
